@@ -1,5 +1,6 @@
-
 import { NavLink, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { getDashboardStats } from "./services/dashboardService";
 import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
 import Customers from "./pages/Customers";
@@ -102,37 +103,118 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+
 function DashboardHome() {
+
+const [dashboard, setDashboard] = useState(null);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState("");
+
+const [selectedRange, setSelectedRange] = useState("12m");
+
+// Custom date states
+const [customStartDate, setCustomStartDate] = useState("");
+const [customEndDate, setCustomEndDate] = useState("");
+const [appliedCustomRange, setAppliedCustomRange] = useState(null);
+
+const loadDashboard = async (
+  range = selectedRange,
+  customDates = appliedCustomRange
+) => {
+  try {
+    if (range === "custom" && !customDates) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const data =
+      range === "custom"
+        ? await getDashboardStats(
+            "custom",
+            customDates.startDate,
+            customDates.endDate
+          )
+        : await getDashboardStats(range);
+
+    setDashboard(data);
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+      err.message ||
+      "Unable to load dashboard data."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Automatically load preset ranges.
+// Custom ranges will load only when Apply is clicked.
+useEffect(() => {
+  if (selectedRange !== "custom") {
+    loadDashboard(selectedRange);
+  } else if (appliedCustomRange) {
+    loadDashboard("custom", appliedCustomRange);
+  }
+}, [selectedRange, appliedCustomRange]);
+
+
   const stats = [
     {
       title: "Total Revenue",
-      value: "$48,294",
-      change: "+12.8%",
+      value: `$${(dashboard?.stats?.totalRevenue || 0).toLocaleString("en-US", {
+        maximumFractionDigits: 2,
+      })}`,
       icon: DollarSign,
-      color: "blue"
+      color: "blue",
     },
     {
       title: "Total Orders",
-      value: "2,450",
-      change: "+8.2%",
+      value: (dashboard?.stats?.totalOrders || 0).toLocaleString(),
       icon: ShoppingCart,
-      color: "purple"
+      color: "purple",
     },
     {
       title: "Total Customers",
-      value: "1,840",
-      change: "+15.4%",
+      value: (dashboard?.stats?.totalCustomers || 0).toLocaleString(),
       icon: Users,
-      color: "green"
+      color: "green",
     },
     {
       title: "Total Products",
-      value: "384",
-      change: "+4.6%",
+      value: (dashboard?.stats?.totalProducts || 0).toLocaleString(),
       icon: Package,
-      color: "orange"
-    }
+      color: "orange",
+    },
   ];
+
+  const statusColors = {
+    Completed: "#16a34a",
+    Pending: "#f59e0b",
+    Processing: "#6366f1",
+    Cancelled: "#ef4444",
+  };
+
+  const orderStatusData = dashboard?.orderStatusData || [];
+
+const customDays =
+  appliedCustomRange
+    ? (
+        new Date(`${appliedCustomRange.endDate}T00:00:00Z`) -
+        new Date(`${appliedCustomRange.startDate}T00:00:00Z`)
+      ) / (1000 * 60 * 60 * 24)
+    : null;
+
+const isDailyRange =
+  selectedRange === "7d" ||
+  selectedRange === "30d" ||
+  (selectedRange === "custom" &&
+    customDays !== null &&
+    customDays < 31);
+
+const chartPeriodLabel = isDailyRange ? "Daily" : "Monthly";
 
   return (
     <section className="dashboard-content">
@@ -141,161 +223,304 @@ function DashboardHome() {
           <h1>Business Overview</h1>
           <p>Monitor your business performance at a glance.</p>
         </div>
-        <button className="date-btn">Last 30 Days</button>
+
+        <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap",
+  }}
+>
+  <select
+    className="date-btn"
+    value={selectedRange}
+    onChange={(e) => setSelectedRange(e.target.value)}
+    disabled={loading}
+  >
+    <option value="7d">Last 7 Days</option>
+    <option value="30d">Last 30 Days</option>
+    <option value="3m">Last 3 Months</option>
+    <option value="6m">Last 6 Months</option>
+    <option value="12m">Last 12 Months</option>
+    <option value="custom">Custom Date Range</option>
+  </select>
+
+  {selectedRange === "custom" && (
+    <>
+      <input
+        type="date"
+        className="date-btn"
+        value={customStartDate}
+        max={customEndDate || undefined}
+        onChange={(e) => setCustomStartDate(e.target.value)}
+        disabled={loading}
+      />
+
+      <input
+        type="date"
+        className="date-btn"
+        value={customEndDate}
+        min={customStartDate || undefined}
+        onChange={(e) => setCustomEndDate(e.target.value)}
+        disabled={loading}
+      />
+
+      <button
+        className="date-btn"
+        onClick={() => {
+          if (!customStartDate || !customEndDate) {
+            setError("Please select both start date and end date.");
+            return;
+          }
+
+          setError("");
+
+          setAppliedCustomRange({
+            startDate: customStartDate,
+            endDate: customEndDate,
+          });
+        }}
+        disabled={loading || !customStartDate || !customEndDate}
+      >
+        Apply
+      </button>
+    </>
+  )}
+
+  <button
+    className="date-btn"
+    onClick={() => loadDashboard()}
+    disabled={loading}
+  >
+    Refresh Data
+  </button>
+</div>
       </div>
 
-      <div className="stats-grid">
-        {stats.map((item, index) => {
-          const Icon = item.icon;
+      {loading && (
+        <p style={{ padding: "20px 0", color: "#64748b" }}>
+          Loading dashboard analytics...
+        </p>
+      )}
 
-          return (
-            <div className="stat-card" key={index}>
-              <div className="stat-top">
-                <div className={`stat-icon ${item.color}`}>
-                  <Icon size={21} />
+      {error && (
+        <div style={{ padding: "15px", color: "#dc2626" }}>
+          <p>{error}</p>
+          <button onClick={loadDashboard}>Try Again</button>
+        </div>
+      )}
+
+      {!loading && !error && dashboard && (
+        <>
+          <div className="stats-grid">
+            {stats.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div className="stat-card" key={item.title}>
+                  <div className="stat-top">
+                    <div className={`stat-icon ${item.color}`}>
+                      <Icon size={21} />
+                    </div>
+                    <button className="more-btn" type="button">
+                      <MoreHorizontal size={21} />
+                    </button>
+                  </div>
+
+                  <p className="stat-title">{item.title}</p>
+
+                  <div className="stat-bottom">
+                    <h2>{item.value}</h2>
+                  </div>
+
+                  <p className="stat-note">
+                    <ArrowUpRight size={13} />
+                    Live database data
+                  </p>
                 </div>
-                <button className="more-btn">
-                  <MoreHorizontal size={21} />
-                </button>
+              );
+            })}
+          </div>
+
+          <div className="charts-grid">
+            <div className="chart-card large-chart">
+              <div className="chart-header">
+                <div>
+                  <h3>Revenue Analytics</h3>
+                  <p>{chartPeriodLabel} revenue from completed orders</p>
+                </div>
+<span className="chart-tag">
+  {selectedRange === "7d"
+    ? "Last 7 Days"
+    : selectedRange === "30d"
+    ? "Last 30 Days"
+    : selectedRange === "3m"
+    ? "Last 3 Months"
+    : selectedRange === "6m"
+    ? "Last 6 Months"
+    : selectedRange === "custom" && appliedCustomRange
+    ? `${appliedCustomRange.startDate} to ${appliedCustomRange.endDate}`
+    : "Last 12 Months"}
+</span>
               </div>
 
-              <p className="stat-title">{item.title}</p>
+              <ResponsiveContainer width="100%" height={175}>
+                <LineChart data={dashboard.revenueData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#edf0f5"
+                  />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) =>
+                      `$${Number(value).toLocaleString("en-US")}`
+                    }
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#4f46e5"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
 
-              <div className="stat-bottom">
-                <h2>{item.value}</h2>
-                <span className="growth">
-                  <TrendingUp size={14} />
-                  {item.change}
-                </span>
+            <div className="chart-card">
+              <div className="chart-header">
+                <div>
+                  <h3>{chartPeriodLabel} Orders</h3>
+                  <p>Number of orders received</p>
+                </div>
               </div>
 
-              <p className="stat-note">
-                <ArrowUpRight size={13} />
-                Compared to last month
-              </p>
+              <ResponsiveContainer width="100%" height={175}>
+                <BarChart data={dashboard.ordersData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#edf0f5"
+                  />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip />
+                  <Bar
+                    dataKey="orders"
+                    fill="#6366f1"
+                    radius={[5, 5, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          );
-        })}
-      </div>
 
-      <div className="charts-grid">
-        <div className="chart-card large-chart">
-          <div className="chart-header">
-            <div>
-              <h3>Revenue Analytics</h3>
-              <p>Monthly revenue performance</p>
+            <div className="chart-card">
+              <div className="chart-header">
+                <div>
+                  <h3>Order Status</h3>
+                  <p>Distribution of all orders</p>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={175}>
+                <PieChart>
+                  <Pie
+                    data={orderStatusData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="40%"
+                    cy="50%"
+                    innerRadius={42}
+                    outerRadius={65}
+                    paddingAngle={4}
+                  >
+                    {orderStatusData.map((entry) => (
+                      <Cell
+                        key={entry.name}
+                        fill={statusColors[entry.name] || "#94a3b8"}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend
+                    layout="vertical"
+                    verticalAlign="middle"
+                    align="right"
+                    wrapperStyle={{ fontSize: "11px" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            <span className="chart-tag">2026</span>
+
+            <div className="chart-card large-chart">
+              <div className="chart-header">
+                <div>
+                  <h3>Revenue Overview</h3>
+                  <p>{chartPeriodLabel} completed-order revenue</p>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={175}>
+                <AreaChart data={dashboard.revenueData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#edf0f5"
+                  />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) =>
+                      `$${Number(value).toLocaleString("en-US")}`
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#4f46e5"
+                    fill="#818cf8"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-
-          <ResponsiveContainer width="100%" height={175}>
-            <LineChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#edf0f5" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#4f46e5"
-                strokeWidth={3}
-                dot={{ r: 4 }}
-                activeDot={{ r: 7 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card">
-          <div className="chart-header">
-            <div>
-              <h3>Monthly Orders</h3>
-              <p>Number of orders received</p>
-            </div>
-          </div>
-
-          <ResponsiveContainer width="100%" height={175}>
-            <BarChart data={ordersData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#edf0f5" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip />
-              <Bar dataKey="orders" fill="#6366f1" radius={[5, 5, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card">
-          <div className="chart-header">
-            <div>
-              <h3>Order Status</h3>
-              <p>Distribution of all orders</p>
-            </div>
-          </div>
-
-          <ResponsiveContainer width="100%" height={175}>
-            <PieChart>
-              <Pie
-                data={orderStatusData}
-                dataKey="value"
-                nameKey="name"
-                cx="40%"
-                cy="50%"
-                innerRadius={42}
-                outerRadius={65}
-                paddingAngle={4}
-              >
-                {orderStatusData.map((entry, index) => (
-                  <Cell key={entry.name} fill={statusColors[index]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => `${value}%`} />
-              <Legend
-                layout="vertical"
-                verticalAlign="middle"
-                align="right"
-                wrapperStyle={{ fontSize: "11px" }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card large-chart">
-          <div className="chart-header">
-            <div>
-              <h3>Revenue vs Expenses</h3>
-              <p>Monthly financial performance</p>
-            </div>
-          </div>
-
-          <ResponsiveContainer width="100%" height={175}>
-            <AreaChart data={performanceData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#edf0f5" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stackId="1"
-                stroke="#4f46e5"
-                fill="#818cf8"
-              />
-              <Area
-                type="monotone"
-                dataKey="expenses"
-                stackId="1"
-                stroke="#0d9488"
-                fill="#5eead4"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+        </>
+      )}
     </section>
   );
 }
+
 
 function DashboardLayout() {
   const { user, logout } = useAuth();
