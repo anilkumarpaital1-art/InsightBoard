@@ -26,6 +26,18 @@ export const getCustomers = async (params = {}) => {
   return response.data;
 };
 
+// Get all customers for CSV and Excel export
+export const getAllCustomers = async (params = {}) => {
+  const response = await API.get("/customers", {
+    params: {
+      ...params,
+      all: true,
+    },
+  });
+
+  return response.data;
+};
+
 // Create a customer
 export const createCustomer = async (customerData) => {
   const response = await API.post("/customers", customerData);

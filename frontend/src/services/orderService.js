@@ -26,6 +26,18 @@ export const getOrders = async (params = {}) => {
   return response.data;
 };
 
+// Get all orders for CSV and Excel export
+export const getAllOrders = async (params = {}) => {
+  const response = await API.get("/orders", {
+    params: {
+      ...params,
+      all: true,
+    },
+  });
+
+  return response.data;
+};
+
 // Create an order
 export const createOrder = async (orderData) => {
   const response = await API.post("/orders", orderData);

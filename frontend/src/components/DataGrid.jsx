@@ -17,6 +17,7 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  X,
 } from "lucide-react";
 
 function DataGrid({
@@ -35,19 +36,26 @@ function DataGrid({
   onRowMouseLeave,
   selectedRows = [],
   exportFileName = "data",
+  onExportAll,
 }) {
-  const [sorting, setSorting] = useState([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+const [sorting, setSorting] = useState([]);
+const [globalFilter, setGlobalFilter] = useState("");
+const [columnFilters, setColumnFilters] = useState([]);
+
+const [exporting, setExporting] = useState(false);
+const [exportError, setExportError] = useState("");
 
   const table = useReactTable({
     data,
     columns,
     state: {
-      sorting,
-      globalFilter,
-    },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+  sorting,
+  globalFilter,
+  columnFilters,
+},
+onSortingChange: setSorting,
+onGlobalFilterChange: setGlobalFilter,
+onColumnFiltersChange: setColumnFilters,
     enableMultiSort: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -159,24 +167,52 @@ function DataGrid({
     );
   };
 
-  // Export currently filtered and sorted rows
-  const handleExportAllCSV = () => {
-    const records = table
-      .getFilteredRowModel()
-      .rows
-      .map((row) => row.original);
+// Export all matching records from the database
+const handleExportAllCSV = async () => {
+  try {
+    setExporting(true);
+    setExportError("");
+
+    const records = onExportAll
+      ? await onExportAll()
+      : table.getFilteredRowModel().rows.map((row) => row.original);
+
+    if (!records.length) {
+      setExportError("No records available to export.");
+      return;
+    }
 
     exportCSV(records);
-  };
+  } catch (err) {
+    console.error("CSV export error:", err);
+    setExportError("Unable to export CSV. Please try again.");
+  } finally {
+    setExporting(false);
+  }
+};
 
-  const handleExportAllExcel = () => {
-    const records = table
-      .getFilteredRowModel()
-      .rows
-      .map((row) => row.original);
+const handleExportAllExcel = async () => {
+  try {
+    setExporting(true);
+    setExportError("");
+
+    const records = onExportAll
+      ? await onExportAll()
+      : table.getFilteredRowModel().rows.map((row) => row.original);
+
+    if (!records.length) {
+      setExportError("No records available to export.");
+      return;
+    }
 
     exportExcel(records);
-  };
+  } catch (err) {
+    console.error("Excel export error:", err);
+    setExportError("Unable to export Excel. Please try again.");
+  } finally {
+    setExporting(false);
+  }
+};
 
   // Export selected rows
   const handleExportSelectedCSV = () => {
@@ -224,30 +260,45 @@ function DataGrid({
 
         <div style={styles.exportButtons}>
 
+          {(columnFilters.length > 0 || globalFilter.trim() !== "") && (
+  <button
+    type="button"
+    onClick={() => {
+      table.resetColumnFilters();
+      setGlobalFilter("");
+      onSearch?.("");
+    }}
+    style={exportButtonStyle}
+  >
+    <X size={15} />
+    Clear Filters
+  </button>
+)}
+
           <button
             type="button"
             onClick={handleExportAllCSV}
-            disabled={loading || !hasRows}
+            disabled={loading || exporting || (!hasRows && !onExportAll)}
             style={{
               ...exportButtonStyle,
-              opacity: loading || !hasRows ? 0.5 : 1,
+              opacity: loading || exporting || !hasRows ? 0.5 : 1,
             }}
           >
             <FileText size={16} />
-            Export CSV
+{exporting ? "Exporting..." : "Export CSV"}
           </button>
 
           <button
             type="button"
             onClick={handleExportAllExcel}
-            disabled={loading || !hasRows}
+            disabled={loading || exporting || (!hasRows && !onExportAll)}
             style={{
               ...exportButtonStyle,
-              opacity: loading || !hasRows ? 0.5 : 1,
+              opacity: loading || exporting || !hasRows ? 0.5 : 1,
             }}
           >
             <FileSpreadsheet size={16} />
-            Export Excel
+{exporting ? "Exporting..." : "Export Excel"}
           </button>
 
           {selectedRows.length > 0 && (
@@ -278,66 +329,97 @@ function DataGrid({
       </div>
 
       {/* Error */}
-      {error && (
-        <div style={styles.error}>
-          {error}
-        </div>
-      )}
+{(error || exportError) && (
+  <div style={styles.error}>
+    {exportError || error}
+  </div>
+)}
 
       {/* Table */}
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
 
           <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const sorted = header.column.getIsSorted();
+  {table.getHeaderGroups().map((headerGroup) => (
+    <tr key={headerGroup.id}>
+      {headerGroup.headers.map((header) => {
+        const sorted = header.column.getIsSorted();
 
-                  return (
-                    <th
-                      key={header.id}
-                      onClick={
-                        header.column.getCanSort()
-                          ? header.column.getToggleSortingHandler()
-                          : undefined
-                      }
-                      style={{
-                        ...styles.th,
-                        cursor: header.column.getCanSort()
-                          ? "pointer"
-                          : "default",
-                      }}
-                    >
-                      <div style={styles.headerContent}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+        return (
+          <th
+            key={header.id}
+            onClick={
+              header.column.getCanSort()
+                ? header.column.getToggleSortingHandler()
+                : undefined
+            }
+            style={{
+              ...styles.th,
+              cursor: header.column.getCanSort()
+                ? "pointer"
+                : "default",
+            }}
+          >
+            <div style={styles.headerContent}>
+              {header.isPlaceholder
+                ? null
+                : flexRender(
+                    header.column.columnDef.header,
+                    header.getContext()
+                  )}
 
-                        {header.column.getCanSort() && (
-                          <span style={styles.sortIcon}>
-                            {sorted === "asc" ? (
-                              <ChevronUp size={15} />
-                            ) : sorted === "desc" ? (
-                              <ChevronDown size={15} />
-                            ) : (
-                              <ChevronsUpDown
-                                size={14}
-                                color="#94a3b8"
-                              />
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            ))}
-          </thead>
+              {header.column.getCanSort() && (
+                <span style={styles.sortIcon}>
+                  {sorted === "asc" ? (
+                    <ChevronUp size={15} />
+                  ) : sorted === "desc" ? (
+                    <ChevronDown size={15} />
+                  ) : (
+                    <ChevronsUpDown
+                      size={14}
+                      color="#94a3b8"
+                    />
+                  )}
+                </span>
+              )}
+            </div>
+          </th>
+        );
+      })}
+    </tr>
+  ))}
+
+  {/* Individual column filters */}
+  {table.getHeaderGroups().map((headerGroup) => (
+    <tr key={`${headerGroup.id}-filters`}>
+      {headerGroup.headers.map((header) => {
+        const column = header.column;
+
+        const canFilter =
+          column.getCanFilter() &&
+          column.id !== "select" &&
+          column.id !== "actions";
+
+        return (
+          <th key={`${header.id}-filter`} style={styles.filterTh}>
+            {canFilter ? (
+              <input
+                type="text"
+                value={column.getFilterValue() ?? ""}
+                onChange={(e) =>
+                  column.setFilterValue(e.target.value)
+                }
+                placeholder={`Filter ${column.id}...`}
+                style={styles.columnFilter}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : null}
+          </th>
+        );
+      })}
+    </tr>
+  ))}
+</thead>
 
           <tbody>
             {loading ? (
@@ -377,7 +459,9 @@ function DataGrid({
                   colSpan={Math.max(columns.length, 1)}
                   style={styles.messageCell}
                 >
-                  {emptyMessage}
+                  {columnFilters.length > 0 || globalFilter.trim() !== ""
+  ? "No matching records found. Try changing or clearing your filters."
+  : emptyMessage}
                 </td>
               </tr>
             )}
@@ -522,6 +606,23 @@ const styles = {
     whiteSpace: "nowrap",
   },
 
+  filterTh: {
+  padding: "8px 10px",
+  borderBottom: "1px solid #e8ebf0",
+  background: "#fff",
+},
+
+columnFilter: {
+  width: "100%",
+  minWidth: "70px",
+  padding: "7px 8px",
+  border: "1px solid #dce1e9",
+  borderRadius: "6px",
+  outline: "none",
+  fontSize: "12px",
+  boxSizing: "border-box",
+},
+
   messageCell: {
     textAlign: "center",
     padding: "35px 15px",
@@ -555,5 +656,7 @@ const styles = {
     fontWeight: 500,
   },
 };
+
+
 
 export default DataGrid;

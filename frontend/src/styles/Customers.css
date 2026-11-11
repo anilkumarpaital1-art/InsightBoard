@@ -1,0 +1,199 @@
+
+/* =====================================
+   CUSTOMERS PAGE - RESPONSIVE DESIGN
+===================================== */
+
+.customers-page {
+  width: 100%;
+  min-width: 0;
+  padding: 24px;
+}
+
+.customers-page,
+.customers-page * {
+  box-sizing: border-box;
+}
+
+/* Header */
+.customers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.customers-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Toolbar */
+.customers-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.customers-search {
+  flex: 1 1 250px;
+  min-width: 0;
+}
+
+.customers-search input {
+  width: 100%;
+  min-width: 0;
+}
+
+.customers-filter {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+/* Table */
+.customers-table-container {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.customers-table-container > * {
+  min-width: 0;
+}
+
+.customers-table-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Modal */
+.customers-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.customers-modal {
+  width: 100%;
+  max-width: 470px;
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
+  .customers-page {
+    padding: 20px 15px;
+  }
+
+  .customers-header {
+    align-items: stretch;
+  }
+
+  .customers-header-actions {
+    width: 100%;
+  }
+
+  .customers-header-actions button {
+    flex: 1 1 auto;
+  }
+
+  .customers-toolbar {
+    gap: 10px;
+  }
+
+  .customers-search {
+    flex-basis: 100%;
+  }
+
+  .customers-filter {
+    flex: 1;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .customers-page {
+    padding: 15px 10px;
+  }
+
+  .customers-header {
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .customers-header h1 {
+    font-size: 23px !important;
+  }
+
+  .customers-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .customers-header-actions button {
+    width: 100%;
+  }
+
+  .customers-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+  }
+
+  .customers-search {
+    grid-column: 1 / -1;
+  }
+
+  .customers-filter {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .customers-table-container {
+    border-radius: 9px;
+  }
+
+  .customers-table-footer {
+    justify-content: flex-start;
+    font-size: 11px;
+  }
+
+  .customers-modal-overlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .customers-modal {
+    max-height: calc(100dvh - 20px);
+    padding: 20px !important;
+    border-radius: 16px;
+  }
+
+  .customers-modal-actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 9px;
+  }
+
+  .customers-modal-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+}

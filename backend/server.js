@@ -9,6 +9,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const productRoutes = require("./routes/productRoutes");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const ensureAdmin = require("./config/ensureAdmin");
 
 require("dotenv").config();
 
@@ -34,10 +35,16 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB Connection
+
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => {
+  .then(async () => {
     console.log("MongoDB Atlas Connected Successfully!");
+
+    // Initialize predefined Admin account
+    await ensureAdmin();
+
+    console.log("Admin initialization completed.");
 
     app.listen(process.env.PORT || 5000, () => {
       console.log(
@@ -46,6 +53,6 @@ mongoose
     });
   })
   .catch((error) => {
-    console.error("MongoDB Connection Failed:", error.message);
+    console.error("Backend Startup Failed:", error.message);
     process.exit(1);
   });

@@ -2,8 +2,15 @@
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 
+// Verify JWT and authenticate user
 const protect = async (req, res, next) => {
   try {
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        message: "Authentication configuration error.",
+      });
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -39,6 +46,7 @@ const protect = async (req, res, next) => {
   }
 };
 
+// Restrict access based on user role
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {
@@ -51,4 +59,7 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { protect, authorize };
+module.exports = {
+  protect,
+  authorize,
+};

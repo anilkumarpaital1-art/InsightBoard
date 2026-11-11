@@ -134,6 +134,7 @@ if (customStart || customEnd) {
       orderStatus,
       monthlyRevenue,
       monthlyOrders,
+      ordersByStatus,
     ] = await Promise.all([
       Customer.countDocuments({ createdAt: dateFilter }),
       Product.countDocuments({ createdAt: dateFilter }),
@@ -206,7 +207,29 @@ if (customStart || customEnd) {
         },
         { $sort: { _id: 1 } },
       ]),
+
+            Order.aggregate([
+        { $match: { orderDate: dateFilter } },
+        {
+          $group: {
+            _id: {
+              period: {
+                $dateToString: {
+                  format: groupFormat,
+                  date: "$orderDate",
+                  timezone: "UTC",
+                },
+              },
+              status: "$status",
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.period": 1 } },
+      ]),
+
     ]);
+
 
     // Generate labels for every day or month in the selected period.
 const buckets = [];
@@ -273,6 +296,21 @@ const cursor = daily
       value: item.value,
     }));
 
+    const statusMap = new Map(
+  ordersByStatus.map((item) => [
+    `${item._id.period}|${item._id.status}`,
+    item.count,
+  ])
+);
+
+const ordersByStatusData = buckets.map((item) => ({
+  month: item.label,
+  Completed: statusMap.get(`${item.key}|Completed`) || 0,
+  Pending: statusMap.get(`${item.key}|Pending`) || 0,
+  Processing: statusMap.get(`${item.key}|Processing`) || 0,
+  Cancelled: statusMap.get(`${item.key}|Cancelled`) || 0,
+}));
+
 res.status(200).json({
   success: true,
   range,
@@ -286,8 +324,9 @@ res.status(200).json({
         completedOrders,
       },
       revenueData,
-      ordersData,
-      orderStatusData,
+ordersData,
+orderStatusData,
+ordersByStatusData,
     });
   } catch (error) {
     console.error("Dashboard analytics error:", error);

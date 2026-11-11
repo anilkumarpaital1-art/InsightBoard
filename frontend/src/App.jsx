@@ -1,13 +1,22 @@
-import { NavLink, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { getDashboardStats } from "./services/dashboardService";
-import Login from "./pages/Login";
 import { useAuth } from "./context/AuthContext";
-import Customers from "./pages/Customers";
-import Orders from "./pages/Orders";
-import Products from "./pages/Products";
+import {
+  NavLink,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+
+import { lazy, Suspense, useEffect, useState } from "react";
+
+import { getDashboardStats } from "./services/dashboardService";
+const Login = lazy(() => import("./pages/Login"));
+const Customers = lazy(() => import("./pages/Customers"));
+const Orders = lazy(() => import("./pages/Orders"));
+const Products = lazy(() => import("./pages/Products"));
 
 import {
+  Menu,
   LayoutDashboard,
   Users,
   ShoppingCart,
@@ -21,7 +30,9 @@ import {
   TrendingUp,
   ArrowUpRight,
   MoreHorizontal,
-  LogOut
+    LogOut,
+    Sun,
+    Moon
 } from "lucide-react";
 
 import {
@@ -475,45 +486,72 @@ const chartPeriodLabel = isDailyRange ? "Daily" : "Monthly";
             </div>
 
             <div className="chart-card large-chart">
-              <div className="chart-header">
-                <div>
-                  <h3>Revenue Overview</h3>
-                  <p>{chartPeriodLabel} completed-order revenue</p>
-                </div>
-              </div>
+  <div className="chart-header">
+    <div>
+      <h3>Order Status Trends</h3>
+      <p>{chartPeriodLabel} orders grouped by status</p>
+    </div>
+  </div>
 
-              <ResponsiveContainer width="100%" height={175}>
-                <AreaChart data={dashboard.revenueData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="#edf0f5"
-                  />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    formatter={(value) =>
-                      `$${Number(value).toLocaleString("en-US")}`
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#4f46e5"
-                    fill="#818cf8"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+  <ResponsiveContainer width="100%" height={220}>
+    <AreaChart data={dashboard.ordersByStatusData || []}>
+      <CartesianGrid
+        strokeDasharray="3 3"
+        vertical={false}
+        stroke="#edf0f5"
+      />
+
+      <XAxis
+        dataKey="month"
+        tick={{ fontSize: 12 }}
+        axisLine={false}
+        tickLine={false}
+      />
+
+      <YAxis
+        allowDecimals={false}
+        tick={{ fontSize: 12 }}
+        axisLine={false}
+        tickLine={false}
+      />
+
+      <Tooltip />
+      <Legend />
+
+      <Area
+        type="monotone"
+        dataKey="Completed"
+        stackId="1"
+        stroke="#16a34a"
+        fill="#16a34a"
+      />
+
+      <Area
+        type="monotone"
+        dataKey="Processing"
+        stackId="1"
+        stroke="#6366f1"
+        fill="#6366f1"
+      />
+
+      <Area
+        type="monotone"
+        dataKey="Pending"
+        stackId="1"
+        stroke="#f59e0b"
+        fill="#f59e0b"
+      />
+
+      <Area
+        type="monotone"
+        dataKey="Cancelled"
+        stackId="1"
+        stroke="#ef4444"
+        fill="#ef4444"
+      />
+    </AreaChart>
+      </ResponsiveContainer>
+    </div>
           </div>
         </>
       )}
@@ -522,53 +560,110 @@ const chartPeriodLabel = isDailyRange ? "Daily" : "Monthly";
 }
 
 
+
 function DashboardLayout() {
   const { user, logout } = useAuth();
+    const location = useLocation();
+
+      const pageNames = {
+    "/": "Dashboard",
+    "/customers": "Customers",
+    "/orders": "Orders",
+    "/products": "Products",
+  };
+
+  const currentPage = pageNames[location.pathname] || "Dashboard";
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const [theme, setTheme] = useState(
+  () => localStorage.getItem("insightboard-theme") || "light"
+);
+
+useEffect(() => {
+  localStorage.setItem("insightboard-theme", theme);
+}, [theme]);
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
+    <div className={`app-layout ${theme}-theme`}>
+      <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="brand">
           <div className="brand-icon">I</div>
+
           <h2>InsightBoard</h2>
+
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setSidebarCollapsed((prev) => !prev)}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <Menu size={19} />
+          </button>
         </div>
 
         <p className="menu-label">MAIN MENU</p>
 
         <nav className="sidebar-menu">
-          <NavLink to="/" end className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/"
+            end
+            title="Dashboard"
+            className={({ isActive }) =>
+              `menu-item ${isActive ? "active" : ""}`
+            }
+          >
             <LayoutDashboard size={19} />
             <span>Dashboard</span>
           </NavLink>
 
-          <NavLink to="/customers" className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/customers"
+            title="Customers"
+            className={({ isActive }) =>
+              `menu-item ${isActive ? "active" : ""}`
+            }
+          >
             <Users size={19} />
             <span>Customers</span>
           </NavLink>
 
-          <NavLink to="/orders" className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/orders"
+            title="Orders"
+            className={({ isActive }) =>
+              `menu-item ${isActive ? "active" : ""}`
+            }
+          >
             <ShoppingCart size={19} />
             <span>Orders</span>
           </NavLink>
 
-          <NavLink to="/products" className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/products"
+            title="Products"
+            className={({ isActive }) =>
+              `menu-item ${isActive ? "active" : ""}`
+            }
+          >
             <Package size={19} />
             <span>Products</span>
           </NavLink>
 
-          <a className="menu-item">
+          <a className="menu-item" title="Analytics">
             <ChartNoAxesCombined size={19} />
             <span>Analytics</span>
           </a>
         </nav>
 
         <div className="sidebar-bottom">
-          <a className="menu-item">
+          <a className="menu-item" title="Help & Support">
             <HelpCircle size={19} />
             <span>Help & Support</span>
           </a>
 
-          <a className="menu-item">
+          <a className="menu-item" title="Settings">
             <Settings size={19} />
             <span>Settings</span>
           </a>
@@ -577,10 +672,12 @@ function DashboardLayout() {
             <div className="avatar">
               {user?.name?.charAt(0)?.toUpperCase() || "A"}
             </div>
-            <div>
+
+            <div className="profile-info">
               <h4>{user?.name || "Admin User"}</h4>
               <p>{user?.role || "Administrator"}</p>
             </div>
+
             <button
               type="button"
               onClick={logout}
@@ -595,12 +692,34 @@ function DashboardLayout() {
 
       <main className="main-content">
         <header className="topbar">
-          <div>
-            <h2>Dashboard</h2>
-            <p>Welcome back! Here's what's happening today.</p>
-          </div>
+  <div>
+    <h2>{currentPage}</h2>
+    <p>Welcome back! Here's what's happening today.</p>
+
+    <div className="breadcrumbs">
+      <NavLink to="/">Home</NavLink>
+
+      {location.pathname !== "/" && (
+        <>
+          <span>/</span>
+          <span>{currentPage}</span>
+        </>
+      )}
+    </div>
+  </div>
 
           <div className="header-actions">
+            <button
+  type="button"
+  className="theme-toggle"
+  onClick={() =>
+    setTheme((prev) => (prev === "light" ? "dark" : "light"))
+  }
+  title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+  aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+>
+  {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
+</button>
             <div className="search-box">
               <Search size={18} />
               <input type="text" placeholder="Search anything..." />
@@ -617,31 +736,49 @@ function DashboardLayout() {
           </div>
         </header>
 
-        <Routes>
-          <Route path="/" element={<DashboardHome />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+                <Suspense
+          fallback={
+            <div style={{ padding: "30px", color: "#64748b" }}>
+              Loading page...
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<DashboardHome />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );
 }
 
+
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <Suspense
+      fallback={
+        <div style={{ padding: "30px", textAlign: "center" }}>
+          Loading InsightBoard...
+        </div>
+      }
+    >
+      <Routes>
+        <Route path="/login" element={<Login />} />
+
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }
 

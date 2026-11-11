@@ -13,6 +13,7 @@ router.get("/", protect, async (req, res) => {
       limit = 8,
       sortBy = "createdAt",
       order = "desc",
+      all = "false",
     } = req.query;
 
     const currentPage = Math.max(1, Number(page) || 1);
@@ -54,16 +55,25 @@ router.get("/", protect, async (req, res) => {
 
     const totalProducts = await Product.countDocuments(filter);
 
-    const products = await Product.find(filter)
-      .sort({ [sortField]: sortOrder })
-      .skip((currentPage - 1) * pageSize)
-      .limit(pageSize);
+let productsQuery = Product.find(filter)
+  .sort({ [sortField]: sortOrder });
+
+if (all !== "true") {
+  productsQuery = productsQuery
+    .skip((currentPage - 1) * pageSize)
+    .limit(pageSize);
+}
+
+const products = await productsQuery;
 
     res.json({
       success: true,
       totalProducts,
       currentPage,
-      totalPages: Math.ceil(totalProducts / pageSize),
+      totalPages:
+  all === "true"
+    ? 1
+    : Math.ceil(totalProducts / pageSize),
       products,
     });
   } catch (error) {

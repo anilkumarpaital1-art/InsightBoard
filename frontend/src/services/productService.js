@@ -26,6 +26,18 @@ export const getProducts = async (params = {}) => {
   return response.data;
 };
 
+// Get all products for CSV and Excel export
+export const getAllProducts = async (params = {}) => {
+  const response = await API.get("/products", {
+    params: {
+      ...params,
+      all: true,
+    },
+  });
+
+  return response.data;
+};
+
 // Create product
 export const createProduct = async (productData) => {
   const response = await API.post("/products", productData);

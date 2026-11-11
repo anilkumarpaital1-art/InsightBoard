@@ -7,13 +7,14 @@ const Order = require("../models/Order");
 router.get("/", protect, async (req, res) => {
   try {
     const {
-      search = "",
-      status = "",
-      page = 1,
-      limit = 5,
-      sortBy = "createdAt",
-      order = "desc"
-    } = req.query;
+  search = "",
+  status = "",
+  page = 1,
+  limit = 5,
+  sortBy = "createdAt",
+  order = "desc",
+  all = "false"
+} = req.query;
 
     const pageNumber = Math.max(1, parseInt(page) || 1);
     const pageLimit = Math.min(100, Math.max(1, parseInt(limit) || 5));
@@ -53,16 +54,25 @@ router.get("/", protect, async (req, res) => {
 
     const totalOrders = await Order.countDocuments(filter);
 
-    const orders = await Order.find(filter)
-      .sort({ [sortField]: sortOrder })
-      .skip((pageNumber - 1) * pageLimit)
-      .limit(pageLimit);
+let ordersQuery = Order.find(filter)
+  .sort({ [sortField]: sortOrder });
+
+if (all !== "true") {
+  ordersQuery = ordersQuery
+    .skip((pageNumber - 1) * pageLimit)
+    .limit(pageLimit);
+}
+
+const orders = await ordersQuery;
 
     res.status(200).json({
       success: true,
       totalOrders,
       currentPage: pageNumber,
-      totalPages: Math.ceil(totalOrders / pageLimit),
+      totalPages:
+  all === "true"
+    ? 1
+    : Math.ceil(totalOrders / pageLimit),
       orders
     });
 

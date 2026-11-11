@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Package,
 } from "lucide-react";
+import "../styles/Products.css";
 
 import DataGrid from "../components/DataGrid";
 

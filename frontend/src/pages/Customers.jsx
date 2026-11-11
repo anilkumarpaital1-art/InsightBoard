@@ -1,6 +1,8 @@
 import { useAuth } from "../context/AuthContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import "../styles/Customers.css";
+
 import {
   Search,
   Plus,
@@ -14,6 +16,7 @@ import DataGrid from "../components/DataGrid";
 
 import {
   getCustomers,
+  getAllCustomers,
   createCustomer,
   updateCustomer,
   deleteCustomer,
@@ -60,6 +63,16 @@ function Customers() {
 const selectedCustomers = customers.filter((customer) =>
   selectedIds.includes(customer._id)
 );
+
+// Fetch all matching customers for CSV and Excel export
+const fetchAllCustomersForExport = useCallback(async () => {
+  const data = await getAllCustomers({
+    search,
+    status,
+  });
+
+  return data.customers || [];
+}, [search, status]);
 
   // Fetch customers from MongoDB
   const fetchCustomers = useCallback(async () => {
@@ -584,6 +597,7 @@ const columns = useMemo(
           data={customers}
           selectedRows={selectedCustomers}
           exportFileName="customers"
+          onExportAll={fetchAllCustomersForExport}
           loading={loading}
           page={page}
           totalPages={totalPages}
