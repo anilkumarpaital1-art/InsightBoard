@@ -125,110 +125,119 @@ if (customStart || customEnd) {
 
     const groupFormat = daily ? "%Y-%m-%d" : "%Y-%m";
 
-    const [
-      totalCustomers,
-      totalProducts,
-      totalOrders,
-      completedOrders,
-      revenueResult,
-      orderStatus,
-      monthlyRevenue,
-      monthlyOrders,
-      ordersByStatus,
-    ] = await Promise.all([
-      Customer.countDocuments({ createdAt: dateFilter }),
-      Product.countDocuments({ createdAt: dateFilter }),
-      Order.countDocuments({ orderDate: dateFilter }),
-      Order.countDocuments({
+    
+const [
+  totalCustomers,
+  totalProducts,
+  totalOrders,
+  completedOrders,
+  revenueResult,
+  orderStatus,
+  monthlyRevenue,
+  monthlyOrders,
+  ordersByStatus,
+] = await Promise.all([
+  // Count all records, regardless of selected date range
+  Customer.countDocuments({}),
+  Product.countDocuments({}),
+  Order.countDocuments({}),
+
+  // Completed orders within selected date range
+  Order.countDocuments({
+    status: "Completed",
+    orderDate: dateFilter,
+  }),
+
+  // Total revenue from completed orders
+  Order.aggregate([
+    {
+      $match: {
         status: "Completed",
         orderDate: dateFilter,
-      }),
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: "$totalAmount" },
+      },
+    },
+  ]),
 
-      Order.aggregate([
-        {
-          $match: {
-            status: "Completed",
-            orderDate: dateFilter,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: "$totalAmount" },
-          },
-        },
-      ]),
+  // Order status distribution
+  Order.aggregate([
+    { $match: { orderDate: dateFilter } },
+    {
+      $group: {
+        _id: "$status",
+        value: { $sum: 1 },
+      },
+    },
+  ]),
 
-      Order.aggregate([
-        { $match: { orderDate: dateFilter } },
-        {
-          $group: {
-            _id: "$status",
-            value: { $sum: 1 },
+  // Revenue grouped by day/month
+  Order.aggregate([
+    {
+      $match: {
+        status: "Completed",
+        orderDate: dateFilter,
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: {
+            format: groupFormat,
+            date: "$orderDate",
+            timezone: "UTC",
           },
         },
-      ]),
+        revenue: { $sum: "$totalAmount" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]),
 
-      Order.aggregate([
-        {
-          $match: {
-            status: "Completed",
-            orderDate: dateFilter,
+  // Orders grouped by day/month
+  Order.aggregate([
+    { $match: { orderDate: dateFilter } },
+    {
+      $group: {
+        _id: {
+          $dateToString: {
+            format: groupFormat,
+            date: "$orderDate",
+            timezone: "UTC",
           },
         },
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: groupFormat,
-                date: "$orderDate",
-                timezone: "UTC",
-              },
+        orders: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]),
+
+  // Monthly/daily order status trends
+  Order.aggregate([
+    { $match: { orderDate: dateFilter } },
+    {
+      $group: {
+        _id: {
+          period: {
+            $dateToString: {
+              format: groupFormat,
+              date: "$orderDate",
+              timezone: "UTC",
             },
-            revenue: { $sum: "$totalAmount" },
           },
+          status: "$status",
         },
-        { $sort: { _id: 1 } },
-      ]),
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { "_id.period": 1 } },
+  ]),
+]);
 
-      Order.aggregate([
-        { $match: { orderDate: dateFilter } },
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: groupFormat,
-                date: "$orderDate",
-                timezone: "UTC",
-              },
-            },
-            orders: { $sum: 1 },
-          },
-        },
-        { $sort: { _id: 1 } },
-      ]),
-
-            Order.aggregate([
-        { $match: { orderDate: dateFilter } },
-        {
-          $group: {
-            _id: {
-              period: {
-                $dateToString: {
-                  format: groupFormat,
-                  date: "$orderDate",
-                  timezone: "UTC",
-                },
-              },
-              status: "$status",
-            },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { "_id.period": 1 } },
-      ]),
-
-    ]);
 
 
     // Generate labels for every day or month in the selected period.

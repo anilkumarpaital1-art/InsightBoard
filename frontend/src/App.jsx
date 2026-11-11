@@ -175,9 +175,11 @@ useEffect(() => {
   const stats = [
     {
       title: "Total Revenue",
-      value: `$${(dashboard?.stats?.totalRevenue || 0).toLocaleString("en-US", {
-        maximumFractionDigits: 2,
-      })}`,
+value: new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+}).format(dashboard?.stats?.totalRevenue || 0),
       icon: DollarSign,
       color: "blue",
     },
@@ -394,11 +396,15 @@ const chartPeriodLabel = isDailyRange ? "Daily" : "Monthly";
                     axisLine={false}
                     tickLine={false}
                   />
-                  <Tooltip
-                    formatter={(value) =>
-                      `$${Number(value).toLocaleString("en-US")}`
-                    }
-                  />
+<Tooltip
+  formatter={(value) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(value))
+  }
+/>
                   <Line
                     type="monotone"
                     dataKey="revenue"
