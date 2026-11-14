@@ -15,6 +15,7 @@ const Customers = lazy(() => import("./pages/Customers"));
 const Orders = lazy(() => import("./pages/Orders"));
 const Products = lazy(() => import("./pages/Products"));
 
+
 import {
   Menu,
   LayoutDashboard,
@@ -54,6 +55,7 @@ import {
 } from "recharts";
 
 import "./App.css";
+import Footer from "./components/Footer";
 
 const revenueData = [
   { month: "Jan", revenue: 12000 },
@@ -742,21 +744,25 @@ useEffect(() => {
           </div>
         </header>
 
-                <Suspense
-          fallback={
-            <div style={{ padding: "30px", color: "#64748b" }}>
-              Loading page...
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<DashboardHome />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <div className="page-content">
+          <Suspense
+            fallback={
+              <div style={{ padding: "30px", color: "#64748b" }}>
+                Loading page...
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<DashboardHome />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </div>
+
+        <Footer />
       </main>
     </div>
   );
